@@ -44,3 +44,6 @@ jobs:
         run: |
           jq empty aws/cloudwatch/amazon-cloudwatch-agent.json
           jq empty aws/iam/openclaw-s3-archive-policy.json
+          if [ -f deploy/openclaw/mcp/mcpservers.json ]; then
+            jq empty deploy/openclaw/mcp/mcpservers.json
+          fi

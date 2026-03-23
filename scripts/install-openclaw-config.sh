@@ -80,7 +80,10 @@ install -d -m 755 "${TARGET_ROOT}"
 install -d -m 755 "${TARGET_ROOT}/workspace"
 install -d -m 755 "${TARGET_ROOT}/agents"
 install -d -m 755 "${TARGET_ROOT}/credentials"
+install -d -m 755 "${TARGET_ROOT}/mcp"
+install -d -m 755 "${TARGET_ROOT}/mcp/servers.d"
 install -d -m 755 "${TARGET_ROOT}/workspace/skills"
+install -d -m 755 "${TARGET_ROOT}/workspace/memory"
 
 render_envsubst_file() {
   local source_path="$1"
@@ -109,6 +112,34 @@ if [[ -d /opt/openclaw/deploy/openclaw/workspace/skills ]]; then
   done < <(find /opt/openclaw/deploy/openclaw/workspace/skills -type f -print0)
 fi
 
+if [[ -d /opt/openclaw/deploy/openclaw/mcp ]]; then
+  while IFS= read -r -d '' mcp_file; do
+    rel_path="${mcp_file#/opt/openclaw/deploy/openclaw/mcp/}"
+    target_path="${TARGET_ROOT}/mcp/${rel_path}"
+    install -d -m 755 "$(dirname "${target_path}")"
+    render_envsubst_file "${mcp_file}" "${target_path}"
+  done < <(find /opt/openclaw/deploy/openclaw/mcp -type f -print0)
+fi
+
+if [[ -f "${TARGET_ROOT}/mcp/mcpservers.json" ]]; then
+  cp "${TARGET_ROOT}/mcp/mcpservers.json" "${TARGET_ROOT}/mcpservers.json"
+fi
+
+if [[ ! -e "${TARGET_ROOT}/workspace/MEMORY.md" ]]; then
+  cat <<'EOF' > "${TARGET_ROOT}/workspace/MEMORY.md"
+# Long-Term Memory
+
+EOF
+fi
+
+daily_memory_path="${TARGET_ROOT}/workspace/memory/$(date +%F).md"
+if [[ ! -e "${daily_memory_path}" ]]; then
+  cat <<EOF > "${daily_memory_path}"
+# $(date +%F)
+
+EOF
+fi
+
 if [[ -e "${HOME_LINK}" && ! -L "${HOME_LINK}" ]]; then
   rm -rf "${HOME_LINK}"
 fi
@@ -118,4 +149,8 @@ chown -h ec2-user:ec2-user "${HOME_LINK}"
 chown -R ec2-user:ec2-user "${TARGET_ROOT}"
 
 echo "Installed OpenClaw config to ${TARGET_CONFIG}"
+if [[ -f "${TARGET_ROOT}/mcpservers.json" ]]; then
+  echo "Installed MCP config to ${TARGET_ROOT}/mcpservers.json"
+  echo "Installed MCP config to ${TARGET_ROOT}/mcp/mcpservers.json"
+fi
 echo "Linked ${HOME_LINK} -> ${TARGET_ROOT}"

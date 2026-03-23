@@ -23,6 +23,7 @@ Verify:
 
 ```bash
 runuser -l ec2-user -c 'openclaw gateway status'
+runuser -l ec2-user -c 'cd /opt/openclaw && bash scripts/report-openclaw-state.sh'
 ```
 
 Model switching from Slack:
@@ -45,6 +46,12 @@ Workspace instruction files:
 - use these files for persistent instructions, policy, product context, and routing guidance for the live bot
 - do not put deployment-repo authoring instructions there
 - Slack messages are still the live user prompts
+- `/opt/openclaw/deploy/openclaw/mcp/**/*` is copied into `/srv/openclaw/app/.openclaw/mcp/` when present
+- `/opt/openclaw/deploy/openclaw/mcp/mcpservers.json` is also mirrored to `/srv/openclaw/app/.openclaw/mcpservers.json`
+- Deploy also creates the native memory-core layout if missing:
+- `/srv/openclaw/app/.openclaw/workspace/MEMORY.md`
+- `/srv/openclaw/app/.openclaw/workspace/memory/`
+- `/srv/openclaw/app/.openclaw/workspace/memory/YYYY-MM-DD.md` for the install date
 
 Installed ClawHub skills:
 
