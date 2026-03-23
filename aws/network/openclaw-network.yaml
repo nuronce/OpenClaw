@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: OpenClaw Phase 1 network with a dedicated public subnet.
+
+Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: OpenClaw
+    AllowedPattern: '^[A-Za-z][A-Za-z0-9-]{0,30}$'
+  VpcCidr:
+    Type: String
+    Default: 10.42.0.0/16
+  PublicSubnetCidr:
+    Type: String
+    Default: 10.42.10.0/24
+
+Resources:
+  OpenClawVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} VPC'
+
+  OpenClawInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Internet Gateway'
+
+  OpenClawVpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref OpenClawInternetGateway
+      VpcId: !Ref OpenClawVpc
+
+  OpenClawSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref OpenClawVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Public Subnet'
+
+  OpenClawRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref OpenClawVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Public Route Table'
+
+  OpenClawDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: OpenClawVpcGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref OpenClawInternetGateway
+      RouteTableId: !Ref OpenClawRouteTable
+
+  OpenClawSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref OpenClawRouteTable
+      SubnetId: !Ref OpenClawSubnet
+
+  OpenClawSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: OpenClaw EC2 security group with no inbound access
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref OpenClawVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Security Group'
+
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref OpenClawVpc
+  SubnetId:
+    Description: Public subnet ID
+    Value: !Ref OpenClawSubnet
+  SecurityGroupId:
+    Description: Security group ID
+    Value: !Ref OpenClawSecurityGroup

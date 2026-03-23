@@ -1,0 +1,386 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  OpenClaw Phase 1 foundation stack. Creates compute, storage, IAM, logging, and
+  either a new public network layout or launches into an existing VPC/subnet.
+
+Rules:
+  ExistingNetworkRequiresVpcId:
+    RuleCondition: !Equals [!Ref NetworkMode, existing]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref ExistingVpcId, '']]
+        AssertDescription: ExistingVpcId is required when NetworkMode=existing.
+  ExistingNetworkRequiresSubnetId:
+    RuleCondition: !Equals [!Ref NetworkMode, existing]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref ExistingInstanceSubnetId, '']]
+        AssertDescription: ExistingInstanceSubnetId is required when NetworkMode=existing.
+
+Parameters:
+  NetworkMode:
+    Type: String
+    Default: create
+    AllowedValues:
+      - create
+      - existing
+    Description: Create a new public network layout or deploy into an existing VPC/subnet.
+  ExistingVpcId:
+    Type: String
+    Default: ''
+    Description: Existing VPC ID to use when NetworkMode=existing.
+  ExistingInstanceSubnetId:
+    Type: String
+    Default: ''
+    Description: Existing subnet ID for the EC2 instance when NetworkMode=existing.
+  ExistingSecurityGroupId:
+    Type: String
+    Default: ''
+    Description: Optional existing security group ID to reuse when NetworkMode=existing.
+  VpcCidr:
+    Type: String
+    Default: 10.42.0.0/16
+  PublicSubnetCidrAzA:
+    Type: String
+    Default: 10.42.10.0/24
+  PublicSubnetCidrAzB:
+    Type: String
+    Default: 10.42.11.0/24
+  InstanceSubnetChoice:
+    Type: String
+    Default: primary
+    AllowedValues:
+      - primary
+      - secondary
+  InstanceType:
+    Type: String
+    Default: t4g.medium
+    AllowedValues:
+      - t4g.small
+      - t4g.medium
+      - t4g.large
+      - t4g.xlarge
+  RootVolumeGiB:
+    Type: Number
+    Default: 30
+    MinValue: 16
+    MaxValue: 200
+  DataVolumeGiB:
+    Type: Number
+    Default: 100
+    MinValue: 20
+    MaxValue: 1024
+  DataVolumeDeviceName:
+    Type: String
+    Default: /dev/sdf
+  SshAccessCidr:
+    Type: String
+    Default: ''
+    Description: Optional CIDR allowed to SSH to the instance on port 22.
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+  ArchiveBucketName:
+    Type: String
+    Default: ''
+    Description: Optional custom bucket name. Leave blank to auto-generate.
+  ResourcePrefix:
+    Type: String
+    Default: OpenClaw
+    AllowedPattern: '^[A-Za-z][A-Za-z0-9-]{0,30}$'
+  ArchiveLogRetentionDays:
+    Type: Number
+    Default: 90
+    MinValue: 30
+    MaxValue: 3650
+
+Conditions:
+  CreateNetworkResources: !Equals [!Ref NetworkMode, create]
+  HasCustomArchiveBucketName: !Not [!Equals [!Ref ArchiveBucketName, '']]
+  LaunchInPrimarySubnet: !Equals [!Ref InstanceSubnetChoice, primary]
+  CreateManagedSecurityGroup: !Or
+    - !Equals [!Ref NetworkMode, create]
+    - !And
+      - !Equals [!Ref NetworkMode, existing]
+      - !Equals [!Ref ExistingSecurityGroupId, '']
+  ManageSshIngress: !And
+    - !Not [!Equals [!Ref SshAccessCidr, '']]
+    - !Or
+      - !Equals [!Ref NetworkMode, create]
+      - !And
+        - !Equals [!Ref NetworkMode, existing]
+        - !Equals [!Ref ExistingSecurityGroupId, '']
+
+Resources:
+  OpenClawVpc:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} VPC'
+
+  OpenClawInternetGateway:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Internet Gateway'
+
+  OpenClawVpcGatewayAttachment:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref OpenClawInternetGateway
+      VpcId: !Ref OpenClawVpc
+
+  OpenClawSubnetAzA:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PublicSubnetCidrAzA
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref OpenClawVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Public Subnet A'
+
+  OpenClawSubnetAzB:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PublicSubnetCidrAzB
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref OpenClawVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Public Subnet B'
+
+  OpenClawRouteTable:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref OpenClawVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Public Route Table'
+
+  OpenClawDefaultRoute:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::Route
+    DependsOn: OpenClawVpcGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref OpenClawInternetGateway
+      RouteTableId: !Ref OpenClawRouteTable
+
+  OpenClawSubnetAzARouteTableAssociation:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref OpenClawRouteTable
+      SubnetId: !Ref OpenClawSubnetAzA
+
+  OpenClawSubnetAzBRouteTableAssociation:
+    Condition: CreateNetworkResources
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref OpenClawRouteTable
+      SubnetId: !Ref OpenClawSubnetAzB
+
+  OpenClawSecurityGroup:
+    Condition: CreateManagedSecurityGroup
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: OpenClaw EC2 security group with no inbound access by default
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !If [CreateNetworkResources, !Ref OpenClawVpc, !Ref ExistingVpcId]
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Security Group'
+
+  OpenClawSecurityGroupSshIngress:
+    Condition: ManageSshIngress
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref OpenClawSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref SshAccessCidr
+      Description: Restricted SSH access
+
+  OpenClawArchiveBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !If [HasCustomArchiveBucketName, !Ref ArchiveBucketName, !Ref AWS::NoValue]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: RetainArchiveLogs
+            Status: Enabled
+            Prefix: logs/
+            ExpirationInDays: !Ref ArchiveLogRetentionDays
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Archive Bucket'
+
+  OpenClawInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ResourcePrefix}Ec2Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: OpenClawDescribeKeyPairs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: DescribeKeyPairs
+                Effect: Allow
+                Action:
+                  - ec2:DescribeKeyPairs
+                Resource: '*'
+        - PolicyName: OpenClawArchiveAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ArchiveBucketList
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt OpenClawArchiveBucket.Arn
+              - Sid: ArchiveObjectReadWrite
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                Resource: !Sub '${OpenClawArchiveBucket.Arn}/*'
+
+  OpenClawInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${ResourcePrefix}Ec2Profile'
+      Roles:
+        - !Ref OpenClawInstanceRole
+
+  OpenClawInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref OpenClawInstanceProfile
+      SubnetId: !If
+        - CreateNetworkResources
+        - !If [LaunchInPrimarySubnet, !Ref OpenClawSubnetAzA, !Ref OpenClawSubnetAzB]
+        - !Ref ExistingInstanceSubnetId
+      SecurityGroupIds:
+        - !If [CreateManagedSecurityGroup, !Ref OpenClawSecurityGroup, !Ref ExistingSecurityGroupId]
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref RootVolumeGiB
+            DeleteOnTermination: true
+            Encrypted: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} EC2'
+
+  OpenClawDataVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AvailabilityZone: !GetAtt OpenClawInstance.AvailabilityZone
+      Encrypted: true
+      Size: !Ref DataVolumeGiB
+      VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourcePrefix} Data Volume'
+
+  OpenClawDataVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: !Ref DataVolumeDeviceName
+      InstanceId: !Ref OpenClawInstance
+      VolumeId: !Ref OpenClawDataVolume
+
+Outputs:
+  VpcId:
+    Description: VPC ID used by the deployment
+    Value: !If [CreateNetworkResources, !Ref OpenClawVpc, !Ref ExistingVpcId]
+  SubnetAzAId:
+    Condition: CreateNetworkResources
+    Description: Public subnet ID in the first available AZ
+    Value: !Ref OpenClawSubnetAzA
+  SubnetAzBId:
+    Condition: CreateNetworkResources
+    Description: Public subnet ID in the second available AZ
+    Value: !Ref OpenClawSubnetAzB
+  InstanceSubnetId:
+    Description: Subnet where EC2 instance was launched
+    Value: !If
+      - CreateNetworkResources
+      - !If [LaunchInPrimarySubnet, !Ref OpenClawSubnetAzA, !Ref OpenClawSubnetAzB]
+      - !Ref ExistingInstanceSubnetId
+  PrimaryAvailabilityZone:
+    Condition: CreateNetworkResources
+    Description: First available AZ used for subnet A
+    Value: !GetAtt OpenClawSubnetAzA.AvailabilityZone
+  SecondaryAvailabilityZone:
+    Condition: CreateNetworkResources
+    Description: Second available AZ used for subnet B
+    Value: !GetAtt OpenClawSubnetAzB.AvailabilityZone
+  SecurityGroupId:
+    Description: Security group ID attached to the instance
+    Value: !If [CreateManagedSecurityGroup, !Ref OpenClawSecurityGroup, !Ref ExistingSecurityGroupId]
+  InstanceId:
+    Description: EC2 instance ID
+    Value: !Ref OpenClawInstance
+  InstancePublicIp:
+    Description: EC2 public IP when one is assigned by the selected subnet
+    Value: !GetAtt OpenClawInstance.PublicIp
+  SshUser:
+    Description: Default SSH username for Amazon Linux 2023
+    Value: ec2-user
+  DataVolumeId:
+    Description: Attached data EBS volume ID
+    Value: !Ref OpenClawDataVolume
+  DataVolumeDeviceName:
+    Description: Device name configured for data EBS
+    Value: !Ref DataVolumeDeviceName
+  ArchiveBucketNameOutput:
+    Description: S3 bucket for logs and snapshots
+    Value: !Ref OpenClawArchiveBucket
+  InstanceProfileName:
+    Description: IAM instance profile name
+    Value: !Ref OpenClawInstanceProfile

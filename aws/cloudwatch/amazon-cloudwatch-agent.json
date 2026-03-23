@@ -1,0 +1,27 @@
+{
+  "agent": {
+    "run_as_user": "root"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/tmp/openclaw/openclaw-*.log",
+            "log_group_name": "/openclaw/gateway",
+            "log_stream_name": "{instance_id}/gateway",
+            "retention_in_days": 7,
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/messages",
+            "log_group_name": "/openclaw/system",
+            "log_stream_name": "{instance_id}/messages",
+            "retention_in_days": 7,
+            "timezone": "UTC"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: OpenClaw EC2 instance role for SSM, CloudWatch, and S3 archive access.
+
+Parameters:
+  RoleName:
+    Type: String
+    Default: OpenClawEc2Role
+  InstanceProfileName:
+    Type: String
+    Default: OpenClawEc2Profile
+  ArchiveBucketName:
+    Type: String
+
+Resources:
+  OpenClawInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: OpenClawArchiveAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ArchiveBucketList
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub arn:aws:s3:::${ArchiveBucketName}
+              - Sid: ArchiveObjectReadWrite
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:AbortMultipartUpload
+                Resource: !Sub arn:aws:s3:::${ArchiveBucketName}/*
+
+  OpenClawInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Ref InstanceProfileName
+      Roles:
+        - !Ref OpenClawInstanceRole
+
+Outputs:
+  RoleName:
+    Value: !Ref OpenClawInstanceRole
+  InstanceProfileName:
+    Value: !Ref OpenClawInstanceProfile

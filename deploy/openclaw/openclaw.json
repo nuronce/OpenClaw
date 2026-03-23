@@ -1,0 +1,84 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "${OPENCLAW_BIND_MODE}",
+    "port": ${OPENCLAW_PORT}
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "~/.openclaw/workspace",
+      "model": {
+        "primary": "${OPENCLAW_MODEL_PRIMARY}",
+        "fallbacks": [
+          "${OPENCLAW_MODEL_DEEP}",
+          "${OPENCLAW_MODEL_FAST}"
+        ]
+      },
+      "subagents": {
+        "model": "${OPENCLAW_MODEL_FAST}",
+        "runTimeoutSeconds": 900,
+        "maxConcurrent": 3,
+        "maxChildrenPerAgent": 3,
+        "maxSpawnDepth": 1
+      },
+      "models": {
+        "${OPENCLAW_MODEL_PRIMARY}": {
+          "alias": "balanced"
+        },
+        "${OPENCLAW_MODEL_FAST}": {
+          "alias": "fast"
+        },
+        "${OPENCLAW_MODEL_DEEP}": {
+          "alias": "deep"
+        }
+      }
+    }
+  },
+  "skills": {
+    "entries": {
+      "asana": {
+        "enabled": true,
+        "env": {
+          "ASANA_PERSONAL_ACCESS_TOKEN": "${ASANA_PERSONAL_ACCESS_TOKEN}"
+        }
+      },
+      "github": {
+        "enabled": true,
+        "env": {
+          "GH_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
+          "GITHUB_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+        }
+      },
+      "notion": {
+        "enabled": true,
+        "env": {
+          "NOTION_API_KEY": "${NOTION_API_KEY}"
+        }
+      }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "ollama": {
+        "enabled": false
+      }
+    }
+  },
+  "channels": {
+    "slack": {
+      "enabled": true,
+      "mode": "socket",
+      "appToken": "${SLACK_APP_TOKEN}",
+      "botToken": "${SLACK_BOT_TOKEN}",
+      "groupPolicy": "allowlist",
+      "dmPolicy": "allowlist",
+      "allowFrom": ${SLACK_ALLOW_FROM_JSON},
+      "dm": {
+        "enabled": true,
+        "groupEnabled": true,
+        "replyToMode": "all"
+      },
+      "replyToMode": "off"
+    }
+  }
+}

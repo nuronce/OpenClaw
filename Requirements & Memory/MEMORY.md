@@ -1,0 +1,22 @@
+## Deployment Memory
+
+- Target runtime is Amazon Linux 2023 on EC2. Prefer portable shell patterns over newer GNU-specific flags unless verified on Amazon Linux first.
+- `envsubst` on Amazon Linux may not support options like `--input`. Use standard redirection with a temp file if needed.
+- GitHub Actions deploys use the `DEPLOY_ENV_FILE` secret. That secret can lag behind `deploy/.env.example`, so deploy scripts should be backward compatible with missing newer vars when reasonable.
+- When adding new required env vars, prefer safe defaults or compatibility fallbacks in install scripts to avoid breaking existing deploy secrets.
+- Validate deployment assumptions against the host environment, not just the local workstation.
+- OpenClaw runs on the Amazon Linux EC2 host, not in local PowerShell. PowerShell is only used to open SSM or SSH sessions to the host.
+- Skill env keys are now split and explicit:
+  - `CLAWHUB_SKILLS` for ClawHub-installed skills.
+  - `OPENCLAW_SKILLS` for stock OpenClaw skills (tracking/intent).
+  - No backward compatibility alias for `OPENCLAW_REQUIRED_SKILLS`.
+- Current OpenClaw EC2 instance:
+  - Instance ID: `i-0b11de14da15adf02`
+  - Public IP: `18.226.17.192`
+  - Private IP: `10.42.10.101`
+  - Region: `us-east-2`
+- Preferred connection method from Windows is AWS SSM from PowerShell, then run Linux commands on the host shell.
+- For private GitHub Actions troubleshooting, pull logs directly with:
+  - `gh run view <run_id> --job <job_id> --log`
+  - Prefer this over waiting for screenshots.
+- ssh -i C:\Users\ron\.ssh\id_rsa.supportpets ec2-user@18.226.17.192

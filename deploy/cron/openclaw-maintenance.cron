@@ -1,0 +1,3 @@
+@reboot root sleep 30 && /opt/openclaw/scripts/notify-boot.sh >> /var/log/openclaw/host-health.log 2>&1
+*/5 * * * * root /opt/openclaw/scripts/check-host-health.sh >> /var/log/openclaw/host-health.log 2>&1
+15 2 * * * root /opt/openclaw/scripts/archive-logs-to-s3.sh >> /var/log/openclaw/archive-logs.log 2>&1
