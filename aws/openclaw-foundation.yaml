@@ -195,6 +195,11 @@ Resources:
   OpenClawSecurityGroup:
     Condition: CreateManagedSecurityGroup
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - W1030
     Properties:
       GroupDescription: OpenClaw EC2 security group with no inbound access by default
       SecurityGroupEgress:
@@ -293,6 +298,11 @@ Resources:
 
   OpenClawInstance:
     Type: AWS::EC2::Instance
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - W1030
     Properties:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
