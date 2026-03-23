@@ -4,7 +4,7 @@ This repo is a reusable deployment scaffold for running OpenClaw on a single ARM
 
 ## Architecture Summary
 
-- Compute: one `t4g.medium` EC2 instance on Amazon Linux 2023 ARM64
+- Compute: one `t4g.small` EC2 instance on Amazon Linux 2023 ARM64 by default
 - Runtime: host-installed OpenClaw gateway
 - Slack: Socket Mode, so Slack connects over an outbound WebSocket and no public inbound webhook endpoint is required
 - Model access: Anthropic Claude `setup-token` stored in OpenClaw state on persistent host storage
@@ -39,6 +39,18 @@ Requirements & Memory/
 4. Install the OpenClaw config from `deploy/openclaw/openclaw.json`.
 5. Fill in `deploy/.env.example` as `deploy/.env`.
 6. Use `docs/runbook.md` for deploy, restart, and operations.
+
+## ARM64 Sizing
+
+The foundation stack now defaults to `t4g.small` to reduce baseline cost. If the workload needs more headroom, override the `InstanceType` parameter at deploy time.
+
+Official AWS references for ARM64 EC2 choices and pricing:
+
+- ARM64-capable EC2 families and specs: `https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html`
+- AWS Graviton overview: `https://aws.amazon.com/ec2/graviton/level-up-with-graviton/`
+- T4g instance family details: `https://aws.amazon.com/ec2/instance-types/t4/`
+- EC2 On-Demand pricing: `https://aws.amazon.com/ec2/pricing/on-demand/`
+- AWS Pricing Calculator: `https://calculator.aws/`
 
 ## Git CI/CD
 

@@ -26,7 +26,7 @@ aws cloudformation deploy \
     InstanceSubnetChoice=primary \
     PublicSubnetCidrAzA=10.42.10.0/24 \
     PublicSubnetCidrAzB=10.42.11.0/24 \
-    InstanceType=t4g.medium \
+    InstanceType=t4g.small \
     RootVolumeGiB=30 \
     DataVolumeGiB=100 \
     SshAccessCidr=203.0.113.10/32
@@ -59,7 +59,7 @@ aws cloudformation deploy \
     ExistingVpcId=vpc-0123456789abcdef0 \
     ExistingInstanceSubnetId=subnet-0123456789abcdef0 \
     ExistingSecurityGroupId=sg-0123456789abcdef0 \
-    InstanceType=t4g.medium \
+    InstanceType=t4g.small \
     RootVolumeGiB=30 \
     DataVolumeGiB=100
 ```

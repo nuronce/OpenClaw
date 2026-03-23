@@ -52,7 +52,7 @@ Parameters:
       - secondary
   InstanceType:
     Type: String
-    Default: t4g.medium
+    Default: t4g.small
     AllowedValues:
       - t4g.small
       - t4g.medium
