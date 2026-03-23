@@ -10,13 +10,10 @@
   - `CLAWHUB_SKILLS` for ClawHub-installed skills.
   - `OPENCLAW_SKILLS` for stock OpenClaw skills (tracking/intent).
   - No backward compatibility alias for `OPENCLAW_REQUIRED_SKILLS`.
-- Current OpenClaw EC2 instance:
-  - Instance ID: `i-0b11de14da15adf02`
-  - Public IP: `18.226.17.192`
-  - Private IP: `10.42.10.101`
-  - Region: `us-east-2`
+- Current deployment identifiers such as instance ID, IP addresses, subnet IDs, and region are runtime-specific.
+- Read them from the active CloudFormation stack outputs, AWS CLI, or the current `deploy/.env` rather than hardcoding them into repo guidance.
 - Preferred connection method from Windows is AWS SSM from PowerShell, then run Linux commands on the host shell.
 - For private GitHub Actions troubleshooting, pull logs directly with:
   - `gh run view <run_id> --job <job_id> --log`
   - Prefer this over waiting for screenshots.
-- ssh -i C:\Users\ron\.ssh\id_rsa.supportpets ec2-user@18.226.17.192
+- If SSH is enabled, use a command shaped like `ssh -i <private-key-path> ec2-user@<InstancePublicIp>`.
