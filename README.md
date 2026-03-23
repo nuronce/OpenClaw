@@ -52,17 +52,12 @@ Official AWS references for ARM64 EC2 choices and pricing:
 - EC2 On-Demand pricing: `https://aws.amazon.com/ec2/pricing/on-demand/`
 - AWS Pricing Calculator: `https://calculator.aws/`
 
-## Git CI/CD
+## Git CI
 
-- `DEPLOY_ENV_FILE` is written to `/opt/openclaw/deploy/.env` on the EC2 host over SSM.
-- Set GitHub secrets for `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, and `DEPLOY_ENV_FILE`.
-- `AWS_REGION` should be set explicitly for the target deployment region; this repo no longer assumes a default region.
-
-`DEPLOY_ENV_FILE` should contain the full contents of `deploy/.env`. Update it with:
-
-```powershell
-.\scripts\update-github-secrets.bat
-```
+- GitHub Actions in this repo are validation-only.
+- CI runs linting and template or JSON validation on pushes, pull requests, and manual workflow runs.
+- CI does not deploy infrastructure, write to AWS, provision hosts, or sync `deploy/.env`.
+- Deployments are intentionally manual using the AWS CLI and the steps in `docs/aws-setup.md`.
 
 ## Optional SSH Access
 
