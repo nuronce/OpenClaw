@@ -2,7 +2,8 @@
   "gateway": {
     "mode": "local",
     "bind": "${OPENCLAW_BIND_MODE}",
-    "port": ${OPENCLAW_PORT}
+    "port": ${OPENCLAW_PORT
+    }
   },
   "agents": {
     "defaults": {
@@ -33,6 +34,10 @@
         }
       }
     }
+  },
+  "memory": {
+    "backend": "builtin",
+    "citations": "auto"
   },
   "skills": {
     "entries": {
@@ -72,7 +77,8 @@
       "botToken": "${SLACK_BOT_TOKEN}",
       "groupPolicy": "allowlist",
       "dmPolicy": "allowlist",
-      "allowFrom": ${SLACK_ALLOW_FROM_JSON},
+      "allowFrom": ${SLACK_ALLOW_FROM_JSON
+      },
       "dm": {
         "enabled": true,
         "groupEnabled": true,

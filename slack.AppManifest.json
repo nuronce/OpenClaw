@@ -16,7 +16,7 @@
                 "identify"
             ],
             "bot": [
-                "search:read.mpim",
+                "files:write",
                 "app_mentions:read",
                 "channels:history",
                 "channels:read",
@@ -32,11 +32,13 @@
                 "mpim:history",
                 "mpim:read",
                 "mpim:write",
+                "search:read.mpim",
                 "search:read.users",
                 "team:read",
                 "users:read",
                 "users:read.email"
-            ]
+            ],
+            "pkce_enabled": false
         }
     },
     "settings": {
